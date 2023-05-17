@@ -9,10 +9,18 @@ class Student:
         self.discount = discount
 
 
+class Tutor:
+    def __init__(self, name, hourly_rate):
+        self.name = name
+        self.hourly_rate = hourly_rate
+
+
 class Lesson:
-    def __init__(self, student_name, date, hours):
+    def __init__(self, student_name, tutor_name, date, time, hours):
         self.student_name = student_name
+        self.tutor_name = tutor_name
         self.date = date
+        self.time = time
         self.hours = hours
 
 
@@ -29,12 +37,20 @@ class TutoringSystem:
             "CREATE TABLE IF NOT EXISTS students (name TEXT, hourly_price REAL, discount REAL)"
         )
         self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS lessons (student_name TEXT, date TEXT, hours INTEGER)"
+            "CREATE TABLE IF NOT EXISTS tutors (name TEXT, hourly_rate REAL)"
+        )
+        self.cursor.execute(
+            "CREATE TABLE IF NOT EXISTS lessons (student_name TEXT, tutor_name TEXT, date TEXT, time TEXT, hours INTEGER)"
         )
 
     def disconnect(self):
         self.cursor.close()
         self.connection.close()
+
+    def add_tutor(self, name, hourly_rate):
+        self.cursor.execute("INSERT INTO tutors VALUES (?, ?)", (name, hourly_rate))
+        self.connection.commit()
+        print(f"Tutor '{name}' has been added to the database.")
 
     def add_student(self, name, hourly_price, discount=0):
         self.cursor.execute(
@@ -42,6 +58,32 @@ class TutoringSystem:
         )
         self.connection.commit()
         print(f"Student '{name}' has been added to the database.")
+
+    def schedule_lesson(self, student_name, tutor_name, date, time, hours):
+        self.cursor.execute("SELECT * FROM students WHERE name = ?", (student_name,))
+        student_row = self.cursor.fetchone()
+
+        self.cursor.execute("SELECT * FROM tutors WHERE name = ?", (tutor_name,))
+        tutor_row = self.cursor.fetchone()
+
+        if student_row is not None and tutor_row is not None:
+            lesson = Lesson(student_name, tutor_name, date, time, hours)
+            self.cursor.execute(
+                "INSERT INTO lessons VALUES (?, ?, ?, ?, ?)",
+                (
+                    lesson.student_name,
+                    lesson.tutor_name,
+                    lesson.date,
+                    lesson.time,
+                    lesson.hours,
+                ),
+            )
+            self.connection.commit()
+            print(
+                f"Lesson scheduled for '{student_name}' with tutor '{tutor_name}' on {date} at {time} for {hours} hour(s)."
+            )
+        else:
+            print("Student or tutor not found in the database.")
 
     def update_student(self, name, hourly_price=None, discount=None):
         if hourly_price is not None:
@@ -58,6 +100,17 @@ class TutoringSystem:
             print(f"Student '{name}' has been updated.")
         else:
             print(f"Student '{name}' not found in the database.")
+
+    def display_tutors(self):
+        self.cursor.execute("SELECT * FROM tutors")
+        rows = self.cursor.fetchall()
+
+        print("Tutor Database:")
+        for row in rows:
+            name, hourly_rate = row
+            print(f"Name: {name}")
+            print(f"Hourly Rate: £{hourly_rate}")
+            print("-----------------------")
 
     def display_students(self):
         self.cursor.execute("SELECT * FROM students")
@@ -83,23 +136,6 @@ class TutoringSystem:
         else:
             print(f"Student '{name}' not found in the database.")
 
-    def schedule_lesson(self, student_name, date, hours):
-        self.cursor.execute("SELECT * FROM students WHERE name = ?", (student_name,))
-        row = self.cursor.fetchone()
-
-        if row is not None:
-            lesson = Lesson(student_name, date, hours)
-            self.cursor.execute(
-                "INSERT INTO lessons VALUES (?, ?, ?)",
-                (lesson.student_name, lesson.date, lesson.hours),
-            )
-            self.connection.commit()
-            print(
-                f"Lesson scheduled for '{student_name}' on {date} for {hours} hour(s)."
-            )
-        else:
-            print(f"Student '{student_name}' not found in the database.")
-
 
 # fresh start
 if os.path.exists("tutoring.db"):
@@ -114,11 +150,16 @@ system.connect()
 system.add_student("Alice", 20, 0.1)
 system.add_student("Bob", 25)
 
+# add tutors
+system.add_tutor("John", 30)
+system.add_tutor("Sarah", 35)
+
 # update student
 system.update_student("Alice", hourly_price=22, discount=0.2)
 
-# display student database
+# display student and tutor databases
 system.display_students()
+system.display_tutors()
 
 # calculate payment
 system.calculate_payment("Alice", 5)
@@ -126,7 +167,7 @@ system.calculate_payment("Bob", 3)
 system.calculate_payment("Charlie", 4)
 
 # schedule lesson
-system.schedule_lesson("Alice", "2023-05-20", 2)
-system.schedule_lesson("Bob", "2023-05-21", 1)
+system.schedule_lesson("Alice", "John", "2023-05-20", "15:00", 2)
+system.schedule_lesson("Bob", "Sarah", "2023-05-21", "14:30", 1)
 
 system.disconnect()
