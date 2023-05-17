@@ -2,6 +2,9 @@ import os
 import sqlite3
 import uuid
 
+import printdb
+from str_utils import truncate_str
+
 
 class Student:
     def __init__(self, name, hourly_price, discount=0):
@@ -58,7 +61,7 @@ class TutoringSystem:
             (tutor.id, tutor.name, tutor.hourly_rate),
         )
         self.connection.commit()
-        print(f"Tutor '{name}' has been added to the database with id '{tutor.id}'.")
+        print(f"Tutor {name} added {truncate_str(tutor.id)}.")
         return tutor.id
 
     def add_student(self, name, hourly_price, discount=0):
@@ -68,9 +71,7 @@ class TutoringSystem:
             (student.id, student.name, student.hourly_price, student.discount),
         )
         self.connection.commit()
-        print(
-            f"Student '{name}' has been added to the database with id '{student.id}'."
-        )
+        print(f"Student {name} added {truncate_str(student.id)}.")
         return student.id
 
     def schedule_lesson(self, student_id, tutor_id, date, time, duration):
@@ -98,7 +99,7 @@ class TutoringSystem:
         )
         self.connection.commit()
         print(
-            f"Lesson scheduled for student with id '{student_id}' with tutor with id '{tutor_id}' on {date} at {time} for {duration} hour(s)."
+            f"Lesson scheduled for {student_row[1]} with tutor {tutor_row[1]} on {date} at {time} for {duration} hour(s)."
         )
         return lesson.id
 
@@ -114,34 +115,17 @@ class TutoringSystem:
             )
         self.connection.commit()
         if self.cursor.rowcount > 0:
-            print(f"Student with id '{id}' has been updated.")
+            print(f"Student with id {truncate_str(id)} has been updated.")
         else:
-            print(f"Student with id '{id}' not found in the database.")
+            print(f"Student with id {truncate_str(id)} not found in the database.")
 
     def display_tutors(self):
-        self.cursor.execute("SELECT * FROM tutors")
-        rows = self.cursor.fetchall()
-
         print("Tutor Database:")
-        for row in rows:
-            id, name, hourly_rate = row
-            print(f"ID: {id}")
-            print(f"Name: {name}")
-            print(f"Hourly Rate: £{hourly_rate}")
-            print("-----------------------")
+        printdb.print_pretty_table("tutors")
 
     def display_students(self):
-        self.cursor.execute("SELECT * FROM students")
-        rows = self.cursor.fetchall()
-
         print("Student Database:")
-        for row in rows:
-            id, name, hourly_price, discount = row
-            print(f"ID: {id}")
-            print(f"Name: {name}")
-            print(f"Hourly Price: £{hourly_price}")
-            print(f"Discount: {discount * 100}%")
-            print("-----------------------")
+        printdb.print_pretty_table("students")
 
     def calculate_payment(self, student_id, hours):
         self.cursor.execute("SELECT * FROM students WHERE id = ?", (student_id,))
@@ -151,9 +135,11 @@ class TutoringSystem:
             id, name, hourly_price, discount = row
             student = Student(name, hourly_price, discount)
             payment = student.hourly_price * hours * (1 - student.discount)
-            print(f"Payment for student with id '{student_id}': £{payment}")
+            print(f"Payment for student with id {truncate_str(student_id)}: £{payment}")
         else:
-            print(f"Student with id '{student_id}' not found in the database.")
+            print(
+                f"Student with id {truncate_str(student_id)} not found in the database."
+            )
 
 
 # fresh start
