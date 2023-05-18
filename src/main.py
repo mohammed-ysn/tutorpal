@@ -5,8 +5,6 @@ from tutoring_system import TutoringSystem
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(CURRENT_DIR, "../tutoring.db")
 
-print(DB_PATH)
-
 # fresh start
 if os.path.exists(DB_PATH):
     os.remove(DB_PATH)
