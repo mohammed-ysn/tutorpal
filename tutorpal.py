@@ -11,14 +11,6 @@ class Database:
         self.connection = None
         self.cursor = None
 
-    def connect(self):
-        self.connection = sqlite3.connect(self.db_file)
-        self.cursor = self.connection.cursor()
-
-    def disconnect(self):
-        self.cursor.close()
-        self.connection.close()
-
     def execute_query(self, query, params=()):
         self.cursor.execute(query, params)
         self.connection.commit()
@@ -32,16 +24,14 @@ class Database:
     def description(self):
         return self.cursor.description
 
-    def create_tables(self):
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY, name TEXT, hourly_price REAL, discount REAL)"
-        )
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS tutors (id TEXT PRIMARY KEY, name TEXT, hourly_rate REAL)"
-        )
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS lessons (id TEXT PRIMARY KEY, student_id TEXT, tutor_id TEXT, date TEXT, time TEXT, duration INTEGER)"
-        )
+    def __enter__(self):
+        self.connection = sqlite3.connect(self.db_file)
+        self.cursor = self.connection.cursor()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cursor.close()
+        self.connection.close()
 
 
 class Student:
@@ -72,55 +62,64 @@ class Lesson:
 class TutoringSystem:
     def __init__(self, db_file):
         self.db = Database(db_file)
+        self.create_tables()
 
-    def initialise(self):
-        self.db.connect()
-        self.db.create_tables()
-
-    def finalise(self):
-        self.db.disconnect()
+    def create_tables(self):
+        with self.db:
+            self.db.execute_query(
+                "CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY, name TEXT, hourly_price REAL, discount REAL)"
+            )
+            self.db.execute_query(
+                "CREATE TABLE IF NOT EXISTS tutors (id TEXT PRIMARY KEY, name TEXT, hourly_rate REAL)"
+            )
+            self.db.execute_query(
+                "CREATE TABLE IF NOT EXISTS lessons (id TEXT PRIMARY KEY, student_id TEXT, tutor_id TEXT, date TEXT, time TEXT, duration INTEGER)"
+            )
 
     def add_tutor(self, name, hourly_rate):
         tutor = Tutor(name, hourly_rate)
-        self.db.execute_query(
-            "INSERT INTO tutors VALUES (?, ?, ?)",
-            (tutor.id, tutor.name, tutor.hourly_rate),
-        )
+        with self.db:
+            self.db.execute_query(
+                "INSERT INTO tutors VALUES (?, ?, ?)",
+                (tutor.id, tutor.name, tutor.hourly_rate),
+            )
         print(f"Tutor {name} added [{truncate_str(tutor.id)}].")
         return tutor.id
 
     def add_student(self, name, hourly_price, discount=0):
         student = Student(name, hourly_price, discount)
-        self.db.execute_query(
-            "INSERT INTO students VALUES (?, ?, ?, ?)",
-            (student.id, student.name, student.hourly_price, student.discount),
-        )
+        with self.db:
+            self.db.execute_query(
+                "INSERT INTO students VALUES (?, ?, ?, ?)",
+                (student.id, student.name, student.hourly_price, student.discount),
+            )
         print(f"Student {name} added [{truncate_str(student.id)}].")
         return student.id
 
     def schedule_lesson(self, student_id, tutor_id, date, time, duration):
-        self.db.execute_query("SELECT * FROM students WHERE id = ?", (student_id,))
-        student_row = self.db.fetch_one()
+        with self.db:
+            self.db.execute_query("SELECT * FROM students WHERE id = ?", (student_id,))
+            student_row = self.db.fetch_one()
 
-        self.db.execute_query("SELECT * FROM tutors WHERE id = ?", (tutor_id,))
-        tutor_row = self.db.fetch_one()
+            self.db.execute_query("SELECT * FROM tutors WHERE id = ?", (tutor_id,))
+            tutor_row = self.db.fetch_one()
 
-        if student_row is None or tutor_row is None:
-            print("Student or tutor not found in the database.")
-            return None
+            if student_row is None or tutor_row is None:
+                print("Student or tutor not found in the database.")
+                return None
 
-        lesson = Lesson(student_id, tutor_id, date, time, duration)
-        self.db.execute_query(
-            "INSERT INTO lessons VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                lesson.id,
-                lesson.student_id,
-                lesson.tutor_id,
-                lesson.date,
-                lesson.time,
-                lesson.duration,
-            ),
-        )
+            lesson = Lesson(student_id, tutor_id, date, time, duration)
+            self.db.execute_query(
+                "INSERT INTO lessons VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    lesson.id,
+                    lesson.student_id,
+                    lesson.tutor_id,
+                    lesson.date,
+                    lesson.time,
+                    lesson.duration,
+                ),
+            )
         print(f"Lesson scheduled for {date} at {time} for {duration} hour(s).")
         print(f"\tStudent: {student_row[1]} [{truncate_str(student_id)}]")
         print(f"\tTutor: {tutor_row[1]} [{truncate_str(tutor_id)}]")
@@ -142,7 +141,8 @@ class TutoringSystem:
         query += " WHERE id = ?"
         params.append(id)
 
-        self.db.execute_query(query, tuple(params))
+        with self.db:
+            self.db.execute_query(query, tuple(params))
 
         if self.db.cursor.rowcount > 0:
             print(f"Student with id [{truncate_str(id)}] has been updated.")
@@ -151,19 +151,22 @@ class TutoringSystem:
 
     def display_tutors(self):
         print("Tutor Database:")
-        self.db.execute_query("SELECT * FROM tutors")
-        headers = [desc[0] for desc in self.db.description()]
-        print_pretty_table(rows=self.db.fetch_all(), headers=headers)
+        with self.db:
+            self.db.execute_query("SELECT * FROM tutors")
+            headers = [desc[0] for desc in self.db.description()]
+            print_pretty_table(rows=self.db.fetch_all(), headers=headers)
 
     def display_students(self):
         print("Student Database:")
-        self.db.execute_query("SELECT * FROM students")
-        headers = [desc[0] for desc in self.db.description()]
-        print_pretty_table(rows=self.db.fetch_all(), headers=headers)
+        with self.db:
+            self.db.execute_query("SELECT * FROM students")
+            headers = [desc[0] for desc in self.db.description()]
+            print_pretty_table(rows=self.db.fetch_all(), headers=headers)
 
     def calculate_payment(self, student_id, hours):
-        self.db.execute_query("SELECT * FROM students WHERE id = ?", (student_id,))
-        row = self.db.fetch_one()
+        with self.db:
+            self.db.execute_query("SELECT * FROM students WHERE id = ?", (student_id,))
+            row = self.db.fetch_one()
 
         if row is not None:
             id, name, hourly_price, discount = row
@@ -185,7 +188,6 @@ if os.path.exists("tutoring.db"):
 
 # example usage
 system = TutoringSystem("tutoring.db")
-system.initialise()
 
 # add students
 s1 = system.add_student("Alice", 20, 0.1)
@@ -210,5 +212,3 @@ system.calculate_payment("Not an ID", 4)
 # schedule lesson
 system.schedule_lesson(s1, t1, "2023-05-20", "15:00", 2)
 system.schedule_lesson(s2, t2, "2023-05-21", "14:30", 1)
-
-system.finalise()
