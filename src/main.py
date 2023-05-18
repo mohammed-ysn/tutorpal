@@ -2,13 +2,18 @@ import os
 
 from tutoring_system import TutoringSystem
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(CURRENT_DIR, "../tutoring.db")
+
+print(DB_PATH)
+
 # fresh start
-if os.path.exists("tutoring.db"):
-    os.remove("tutoring.db")
+if os.path.exists(DB_PATH):
+    os.remove(DB_PATH)
     print("File has been removed.")
 
 # example usage
-system = TutoringSystem("tutoring.db")
+system = TutoringSystem(DB_PATH)
 
 # add students
 s1 = system.add_student("Alice", 20, 0.1)
