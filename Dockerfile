@@ -11,7 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy only Python files to the working directory
-COPY *.py ./
+COPY src/*.py ./
 
 # Set the command to run the application
-CMD ["python", "tutorpal.py"]
+CMD ["python", "main.py"]
