@@ -1,6 +1,6 @@
 from database import Database
 from models import Lesson, Student, Tutor
-from str_utils import print_pretty_table, truncate_str
+from str_utils import print_table, truncate_str
 
 
 class TutoringSystem:
@@ -98,14 +98,14 @@ class TutoringSystem:
         with self.db:
             self.db.execute_query("SELECT * FROM tutors")
             headers = [desc[0] for desc in self.db.description()]
-            print_pretty_table(rows=self.db.fetch_all(), headers=headers)
+            print_table(rows=self.db.fetch_all(), headers=headers)
 
     def display_students(self):
         print("Student Database:")
         with self.db:
             self.db.execute_query("SELECT * FROM students")
             headers = [desc[0] for desc in self.db.description()]
-            print_pretty_table(rows=self.db.fetch_all(), headers=headers)
+            print_table(rows=self.db.fetch_all(), headers=headers)
 
     def calculate_payment(self, student_id, hours):
         with self.db:

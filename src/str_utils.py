@@ -1,4 +1,4 @@
-def print_pretty_table(headers, rows):
+def print_table(headers, rows):
     """
     Prints a formatted table of data.
 
